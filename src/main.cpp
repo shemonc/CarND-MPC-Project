@@ -66,16 +66,25 @@ Eigen::VectorXd polyfit(Eigen::VectorXd xvals, Eigen::VectorXd yvals,
 }
 
 int main() {
-  uWS::Hub h;
+    uWS::Hub h;
 
-  // MPC is initialized here!
-  MPC mpc;
-
+    /*
+     * MPC is initialized here!
+     */
+    MPC mpc;
+    
+    /*
+     * states (x, y, psi, v, cte, epsi) 
+     */
   h.onMessage([&mpc](uWS::WebSocket<uWS::SERVER> ws, char *data, size_t length,
                      uWS::OpCode opCode) {
     // "42" at the start of the message means there's a websocket message event.
     // The 4 signifies a websocket message
     // The 2 signifies a websocket event
+    Eigen::VectorXd state(6);
+    vector<double> waypoints_x_from_car;
+    vector<double> waypoints_y_from_car;
+    
     string sdata = string(data).substr(0, length);
     cout << sdata << endl;
     if (sdata.size() > 2 && sdata[0] == '4' && sdata[1] == '2') {
@@ -93,54 +102,126 @@ int main() {
           double v = j[1]["speed"];
 
           /*
-          * TODO: Calculate steering angle and throttle using MPC.
-          *
-          * Both are in between [-1, 1].
-          *
-          */
-          double steer_value;
-          double throttle_value;
+           * The server returns waypoints using the map's coordinate system,
+           * which is different than the car's coordinate system. Transforming
+           * these waypoint into car coordinate
+           */
+            for (int i = 0; i < ptsx.size(); i++) {
+                double dx = ptsx[i] - px;
+                double dy = ptsy[i] - py;
 
-          json msgJson;
-          // NOTE: Remember to divide by deg2rad(25) before you send the steering value back.
-          // Otherwise the values will be in between [-deg2rad(25), deg2rad(25] instead of [-1, 1].
-          msgJson["steering_angle"] = steer_value;
-          msgJson["throttle"] = throttle_value;
+                /*
+                 * Transformed observation coordinate into vehicle coordinate
+                 *
+                 * x2       |cos(Q) -sin(Q) |   x1
+                 *      =   |               | x 
+                 * y2       |sin(Q)  cos(Q) |   y1
+                 */
+                waypoints_x_from_car.push_back(dx*cos(-psi) - dy*sin(-psi));
+                waypoints_y_from_car.push_back(dx*sin(-psi) + dy*cos(-psi));
+            }
 
-          //Display the MPC predicted trajectory 
-          vector<double> mpc_x_vals;
-          vector<double> mpc_y_vals;
+            /*
+             * Calculate steering angle and throttle using MPC.
+             *
+             * Both are in between [-1, 1].
+             *
+             */
+             double steer_value;
+             double throttle_value;
+             double* ptrX = &waypoints_x_from_car[0];
+             double* ptrY = &waypoints_y_from_car[0];
+             Eigen::Map<Eigen::VectorXd> vecX(ptrX , 4);
+             Eigen::Map<Eigen::VectorXd> vecY(ptrY , 4);
+             auto coeffs = polyfit(vecX, vecY, 3);
 
-          //.. add (x,y) points to list here, points are in reference to the vehicle's coordinate system
-          // the points in the simulator are connected by a Green line
+             /*
+              * cross track error
+              */
+             //double cte = polyeval(coeffs, px) - py;
+             double cte = polyeval(coeffs, 0) - 0; // px = 0, py = 0
 
-          msgJson["mpc_x"] = mpc_x_vals;
-          msgJson["mpc_y"] = mpc_y_vals;
+             /*
+              * orientation error
+              * derivative of coeffs[0] + coeffs[1] * x + coeffs[2] * x**2
+              *             + coeffs[3] * x**3 -> coeffs[1] + 2*coeffs[2]*x +
+              *                                   3*coeffs[3]*x**2
+              * x = 0 at t - 1 from car coordinate
+              *
+              * epsi = psi -atan(coeffs[1]);
+              */
+             double epsi = 0 - atan(coeffs[1]);
+             state << 0, 0, 0, v, cte, epsi;
+             auto vars = mpc.Solve(state, coeffs);
 
-          //Display the waypoints/reference line
-          vector<double> next_x_vals;
-          vector<double> next_y_vals;
 
-          //.. add (x,y) points to list here, points are in reference to the vehicle's coordinate system
-          // the points in the simulator are connected by a Yellow line
+             /*
+              * Note:
+              *  if epsi is positive car rotate counter-clockwise, or turn left. In
+              *  the simulator however, a positive value implies a right turn and 
+              *  a negative value implies a left turn.
+              *  multiply the epsi by -1
+              */
+             steer_value = -1 * vars[0];
+             throttle_value = vars[1];
 
-          msgJson["next_x"] = next_x_vals;
-          msgJson["next_y"] = next_y_vals;
+              json msgJson;
+              // NOTE: Remember to divide by deg2rad(25) before you send the steering value back.
+              // Otherwise the values will be in between [-deg2rad(25), deg2rad(25] instead of [-1, 1].
+              steer_value = steer_value/deg2rad(25);
+
+              msgJson["steering_angle"] = steer_value;
+              msgJson["throttle"] = throttle_value;
+
+              //Display the MPC predicted trajectory 
+              vector<double> mpc_x_vals;
+              vector<double> mpc_y_vals;
+
+            /*
+             * add (x,y) points to list here, points are in reference to the
+             * vehicle's coordinate system the points in the simulator are
+             * connected by a Green line
+             */
+            for (int i = 2; i < vars.size(); i++) {
+                mpc_x_vals.push_back(vars[i++]);
+                mpc_y_vals.push_back(vars[i]);
+            }
+            msgJson["mpc_x"] = mpc_x_vals;
+            msgJson["mpc_y"] = mpc_y_vals;
+
+            /*
+             * Display the waypoints/reference line
+             */
+            vector<double> next_x_vals;
+            vector<double> next_y_vals;
+
+            /*
+             * add (x,y) points to list here, points are in reference to the
+             * vehicle's coordinate system the points in the simulator are 
+             * connected by a Yellow line
+             */
+            for (int i = 0; i < 50; i += 3) {
+                next_x_vals.push_back(i);
+                next_y_vals.push_back(polyeval(coeffs, i));
+            }
+
+            msgJson["next_x"] = next_x_vals;
+            msgJson["next_y"] = next_y_vals;
 
 
-          auto msg = "42[\"steer\"," + msgJson.dump() + "]";
-          std::cout << msg << std::endl;
-          // Latency
-          // The purpose is to mimic real driving conditions where
-          // the car does actuate the commands instantly.
-          //
-          // Feel free to play around with this value but should be to drive
-          // around the track with 100ms latency.
-          //
-          // NOTE: REMEMBER TO SET THIS TO 100 MILLISECONDS BEFORE
-          // SUBMITTING.
-          this_thread::sleep_for(chrono::milliseconds(100));
-          ws.send(msg.data(), msg.length(), uWS::OpCode::TEXT);
+            auto msg = "42[\"steer\"," + msgJson.dump() + "]";
+            std::cout << msg << std::endl;
+            // Latency
+            // The purpose is to mimic real driving conditions where
+            // the car does actuate the commands instantly.
+            //
+            // Feel free to play around with this value but should be to drive
+            // around the track with 100ms latency.
+            //
+            // NOTE: REMEMBER TO SET THIS TO 100 MILLISECONDS BEFORE
+            // SUBMITTING.
+            this_thread::sleep_for(chrono::milliseconds(100));
+            ws.send(msg.data(), msg.length(), uWS::OpCode::TEXT);
         }
       } else {
         // Manual driving
