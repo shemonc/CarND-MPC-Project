@@ -36,20 +36,20 @@ MPC predicts the states (x, y, psi, v, cte, epsi) at time t + 1 , given that sta
 
 Current state is passed to model predictive controller, next the optimization solver is called which will used the initial state, the model constrains and cost function to return a vector of control inputs that minimize the cost function. This first control input (steering angle(delta) and throttle(a) ) is applied to the vehicle and repeat the loop.
 
-## Time Length and Elapsed dutation 
+## Time Length and Elapsed dutation
 
 ### dt selection
-This MPC needs to model a 100 millisecond latency between the actuator commands and when those applied.
+This MPC needs to model a 100 millisecond latency between the actuator commands and when those applied.  
 
-cmd issue ------>(a0,d0)      (a1,d1)      (a2,d2)       (d3,d3)_
- ----------------- t0 ---------- t1 --------- t2 --------- t3 --------_
-                     <- 0.1 sec ->
-cmd apply ------------------> (a0,d0)      (a1,d1)       (a2,d2)_
+cmd issue ------>(a0,d0)      (a1,d1)      (a2,d2)       (d3,d3)  
+ ----------------- t0 ---------- t1 --------- t2 --------- t3 --  
+                     <- 0.1 sec ->  
+cmd apply ------------------> (a0,d0)      (a1,d1)       (a2,d2)  
 
-resultant of cmd ------------------------->(a0,d0)      (a1,d1)_
+resultant of cmd ------------------------->(a0,d0)      (a1,d1)  
 
-a -> acceleration
-d -> steering angle
+a -> acceleration  
+d -> steering angle  
 
 Based on the above 100 milli second latency between command issued and applied; the result of
 a0 and d0 will apply after time 0.2 milli second. This is implemented in line 169 to 174 in file
