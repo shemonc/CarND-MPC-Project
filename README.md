@@ -41,12 +41,12 @@ Current state is passed to model predictive controller, next the optimization so
 ### dt selection
 This MPC needs to model a 100 millisecond latency between the actuator commands and when those applied.  
 
-cmd issue ------>(a0,d0)      (a1,d1)      (a2,d2)       (d3,d3)  
+cmd issue ------>(a0,d0)------(a1,d1)------(a2,d2)-------(d3,d3)  
  ----------------- t0 ---------- t1 --------- t2 --------- t3 --  
-                     <- 0.1 sec ->  
-cmd apply ------------------> (a0,d0)      (a1,d1)       (a2,d2)  
+ --------------------<- 0.1 sec ->  
+cmd apply ------------------> (a0,d0)------(a1,d1)-------(a2,d2)  
 
-resultant of cmd ------------------------->(a0,d0)      (a1,d1)  
+resultant of cmd -------------------------->(a0,d0)------(a1,d1)  
 
 a -> acceleration  
 d -> steering angle  
