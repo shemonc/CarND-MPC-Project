@@ -149,9 +149,12 @@ int main() {
               * the polynomial at px and py 
               */
              //double cte = polyeval(coeffs, px) - py;
-             double px_car = px*cos(-psi) - py*sin(-psi); // px on car axis
-             double py_car = px*sin(-psi) + py*cos(-psi); // py on car axis
-             double cte = polyeval(coeffs, px_car) - py_car; 
+
+             /*
+              * Subtract the car's position in map coordinates from the
+              * transformed points. px & py is zero in vehicle coordinate
+              */
+             double cte = polyeval(coeffs, 0) - 0;
 
 
              /*
@@ -159,11 +162,11 @@ int main() {
               * derivative of coeffs[0] + coeffs[1] * x + coeffs[2] * x**2
               *             + coeffs[3] * x**3 -> coeffs[1] + 2*coeffs[2]*x +
               *                                   3*coeffs[3]*x**2
-              * x = 0 at t - 1 from car coordinate
               *
               * epsi = psi -atan(coeffs[1]);
+              * psi is zero in vehicle coordinates.
               */
-             double epsi = -psi - atan(coeffs[1]);
+             double epsi = 0 - atan(coeffs[1]);
              state << 0, 0, 0, v, cte, epsi;
              auto vars = mpc.Solve(state, coeffs);
 
