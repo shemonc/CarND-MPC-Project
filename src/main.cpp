@@ -112,6 +112,7 @@ int main() {
 
                 /*
                  * Transformed observation coordinate into vehicle coordinate
+                 * counter clock wise
                  *
                  * x2       |cos(Q) -sin(Q) |   x1
                  *      =   |               | x 
@@ -131,15 +132,27 @@ int main() {
              double throttle_value;
              double* ptrX = &waypoints_x_from_car[0];
              double* ptrY = &waypoints_y_from_car[0];
+
+             /*
+              * Convert the way points into eigen vectors
+              */
              Eigen::Map<Eigen::VectorXd> vecX(ptrX , 4);
              Eigen::Map<Eigen::VectorXd> vecY(ptrY , 4);
+
+             /*
+              * fit a 3rd order polinomial
+              */
              auto coeffs = polyfit(vecX, vecY, 3);
 
              /*
-              * cross track error
+              * find the cross track error on car reference axis by evaluating
+              * the polynomial at px and py 
               */
              //double cte = polyeval(coeffs, px) - py;
-             double cte = polyeval(coeffs, 0) - 0; // px = 0, py = 0
+             double px_car = px*cos(-psi) - py*sin(-psi); // px on car axis
+             double py_car = px*sin(-psi) + py*cos(-psi); // py on car axis
+             double cte = polyeval(coeffs, px_car) - py_car; 
+
 
              /*
               * orientation error
@@ -150,7 +163,7 @@ int main() {
               *
               * epsi = psi -atan(coeffs[1]);
               */
-             double epsi = 0 - atan(coeffs[1]);
+             double epsi = -psi - atan(coeffs[1]);
              state << 0, 0, 0, v, cte, epsi;
              auto vars = mpc.Solve(state, coeffs);
 
@@ -166,8 +179,13 @@ int main() {
              throttle_value = vars[1];
 
               json msgJson;
-              // NOTE: Remember to divide by deg2rad(25) before you send the steering value back.
-              // Otherwise the values will be in between [-deg2rad(25), deg2rad(25] instead of [-1, 1].
+
+              /*
+               * NOTE:
+               *    Divide the steering angle by deg2rad(25) before send it to
+               *    steering value back Otherwise the values will be in 
+               *    between [-deg2rad(25), deg2rad(25] instead of [-1, 1].
+               */
               steer_value = steer_value/deg2rad(25);
 
               msgJson["steering_angle"] = steer_value;

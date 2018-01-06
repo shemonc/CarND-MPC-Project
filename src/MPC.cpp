@@ -5,8 +5,12 @@
 
 using CppAD::AD;
 
-    // TODO: Set the timestep length and duration
+    /*
+     * Set the timestep length and duration
+     */
     size_t N = 10;
+    //size_t N = 5;
+    //size_t N = 20;
     double dt = 0.1;
 
     /*
@@ -27,7 +31,7 @@ using CppAD::AD;
      * Both the reference cross track and orientation errors are 0.
      * The reference velocity is set to 40 mph.
      */
-    double ref_v = 80;
+    double ref_v = 90;
 
     
     /*
@@ -55,9 +59,9 @@ using CppAD::AD;
         FG_eval(Eigen::VectorXd coeffs) { this->coeffs = coeffs; }
 
         typedef CPPAD_TESTVECTOR(AD<double>) ADvector;
-        
+
         void operator()(ADvector& fg, const ADvector& vars) {
-        
+
             /*
              * implement MPC
              * `fg` a vector of the cost constraints, `vars` is a vector of
@@ -84,14 +88,12 @@ using CppAD::AD;
                 /*
                  * cost for cross track error
                  */
-                //fg[0] += 3000*CppAD::pow(vars[cte_start + t], 2);
-                fg[0] += 3000*CppAD::pow(vars[cte_start + t], 2);
+                fg[0] += 300*CppAD::pow(vars[cte_start + t], 2);
 
                 /*
                  * cost for orientation error
                  */
-                //fg[0] += 3000*CppAD::pow(vars[epsi_start + t], 2);
-                fg[0] += 3000*CppAD::pow(vars[epsi_start + t], 2);
+                fg[0] += 5000*CppAD::pow(vars[epsi_start + t], 2);
                 fg[0] += CppAD::pow(vars[v_start + t] - ref_v, 2);
             }
             
@@ -99,22 +101,23 @@ using CppAD::AD;
              * add cost for actuators
              */
             for (int t = 0; t < N -1; t++) {
-                fg[0] += 5*CppAD::pow(vars[delta_start + t], 2);
-                fg[0] += 5*CppAD::pow(vars[a_start + t], 2);
-                // try adding penalty for speed + steer
-                fg[0] += 700*CppAD::pow(vars[delta_start + t] * vars[v_start + t], 2);
+                fg[0] += CppAD::pow(vars[delta_start + t], 2);
+                fg[0] += CppAD::pow(vars[a_start + t], 2);
                 
-                //fg[0] += 500*CppAD::pow(vars[delta_start + t], 2);
-                //fg[0] += 100*CppAD::pow(vars[a_start + t], 2);
+                /*
+                 * try adding penalty for speed + steer
+                 */
+                fg[0] += 
+                    500*CppAD::pow(vars[delta_start + t]*vars[v_start + t], 2);
             }
 
             /*
              * Minimize the value gap between sequential actuations.
              */
             for (int t = 0; t < N - 2; t++) {
-                fg[0] += 200*CppAD::pow(vars[delta_start + t + 1] -
+                fg[0] += 300*CppAD::pow(vars[delta_start + t + 1] -
                                                     vars[delta_start + t], 2);
-                fg[0] +=  10*CppAD::pow(vars[a_start + t + 1] -
+                fg[0] +=  CppAD::pow(vars[a_start + t + 1] -
                                                     vars[a_start + t], 2);
             }
 
@@ -211,7 +214,6 @@ using CppAD::AD;
 
 vector<double> MPC::Solve(Eigen::VectorXd state, Eigen::VectorXd coeffs) {
     bool ok = true;
-    //size_t i;
     typedef CPPAD_TESTVECTOR(double) Dvector;
 
     double x = state[0];
@@ -221,12 +223,13 @@ vector<double> MPC::Solve(Eigen::VectorXd state, Eigen::VectorXd coeffs) {
     double cte = state[4];
     double epsi = state[5];
 
-  // TODO: Set the number of model variables (includes both states and inputs).
-  // For example: If the state is a 4 element vector, the actuators is a 2
-  // element vector and there are 10 timesteps. The number of variables is:
-  //
+    /*
+     * Set the number of model variables (includes both states and inputs).
+     * For example: If the state is a 4 element vector, the actuators is a 2
+     * element vector and there are 10 timesteps. The number of variables is:
+     */
     size_t n_vars = 6 * N + 2 * (N-1);
-    
+
     /*
      * Set the number of constraints
      */

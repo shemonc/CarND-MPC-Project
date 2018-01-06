@@ -1,7 +1,73 @@
 # CarND-Controls-MPC
 Self-Driving Car Engineer Nanodegree Program
 
+This project you'll implement Model Predictive Control to drive a car around a given track
+
 ---
+
+## Model Predictive Control
+
+Model Predictive control (MPC) uses an optimizer to find the control inputs and minimize the cost function.
+
+### MODEL:
+
+MPC predicts the states (x, y, psi, v, cte, epsi) at time t + 1 , given that state are known at time t.
+
+    x_[t+1] = x[t] + v[t] * cos(psi[t]) * dt
+    y_[t+1] = y[t] + v[t] * sin(psi[t]) * dt
+    psi_[t+1] = psi[t] + v[t] / Lf * delta[t] * dt
+    v_[t+1] = v[t] + a[t] * dt
+    cte[t+1] = f(x[t]) - y[t] + v[t] * sin(epsi[t]) * dt
+    epsi[t+1] = psi[t] - psides[t] + v[t] * delta[t] / Lf * dt
+
+### ACTUATOR:
+    
+    - Steering 
+    - brake and throttle, for simplicity brake and throttle are combined with -1 and 1
+
+### CONSTRAINTS:
+    
+    Steering angle delta within  [-25 deg to +25 deg]
+    Throttle (Brake or Acceleration) within [-1 to 1]
+
+### COST Function:
+
+    J = SUM((cte_t - cte_ref)^2 + (epsi - epsi_ref)^2 + ... )
+
+Current state is passed to model predictive controller, next the optimization solver is called which will used the initial state, the model constrains and cost function to return a vector of control inputs that minimize the cost function. This first control input (steering angle(delta) and throttle(a) ) is applied to the vehicle and repeat the loop.
+
+## Time Length and Elapsed dutation 
+
+### dt selection
+This MPC needs to model a 100 millisecond latency between the actuator commands and when those applied.
+
+cmd issue ------>(a0,d0)      (a1,d1)      (a2,d2)       (d3,d3)
+ ----------------- t0 ---------- t1 --------- t2 --------- t3 --------
+                     <- 0.1 sec ->
+cmd apply ------------------> (a0,d0)      (a1,d1)       (a2,d2)
+
+resultant of cmd ------------------------->(a0,d0)      (a1,d1)
+
+a -> acceleration
+d -> steering angle
+
+Based on the above 100 milli second latency between command issued and applied; the result of
+a0 and d0 will apply after time 0.2 milli second. This is implemented in line 169 to 174 in file
+MPC.cpp
+
+### N selection 
+
+N is set to 10; Lower or higher than this does not work, I guess higher than 10 is tool long to predict and lower than 10 is too short to the model the lowest cost. Besides higher N consume more cpu. As in Receding horizon control we need to evaluate the predicted path for every iteration of N and throw away the remaining points beyond t+1, this will be an extensive algorithm if N is too high.
+In all above cases 0.1 sec was the dt based on the figure above.
+
+## Polynomial Fitting and MPC Preprocessing
+
+Points from reference trajectory (in simulator axis) is transformed into car coordinate and a 3rd order polynomial is fitted to waypoints. Using this fitted coefficient and cars current position px, py(in car axis) the cross track error and desired orientation were evaluated and feeded into the system for the solver to predict the state.
+
+## Model Predictive Control with Latency
+
+Model Predictive Control handles a 100 millisecond latency and is explaind above in section "dt selection"
+
 
 ## Dependencies
 
