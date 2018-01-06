@@ -9,7 +9,7 @@ This project you'll implement Model Predictive Control to drive a car around a g
 
 Model Predictive control (MPC) uses an optimizer to find the control inputs and minimize the cost function.
 
-### MODEL:
+### MODEL
 
 MPC predicts the states (x, y, psi, v, cte, epsi) at time t + 1 , given that state are known at time t.
 
@@ -20,17 +20,17 @@ MPC predicts the states (x, y, psi, v, cte, epsi) at time t + 1 , given that sta
     cte[t+1] = f(x[t]) - y[t] + v[t] * sin(epsi[t]) * dt
     epsi[t+1] = psi[t] - psides[t] + v[t] * delta[t] / Lf * dt
 
-### ACTUATOR:
+### ACTUATOR
     
     - Steering 
     - brake and throttle, for simplicity brake and throttle are combined with -1 and 1
 
-### CONSTRAINTS:
+### CONSTRAINTS
     
     Steering angle delta within  [-25 deg to +25 deg]
     Throttle (Brake or Acceleration) within [-1 to 1]
 
-### COST Function:
+### COST Function
 
     J = SUM((cte_t - cte_ref)^2 + (epsi - epsi_ref)^2 + ... )
 
@@ -41,12 +41,12 @@ Current state is passed to model predictive controller, next the optimization so
 ### dt selection
 This MPC needs to model a 100 millisecond latency between the actuator commands and when those applied.
 
-cmd issue ------>(a0,d0)      (a1,d1)      (a2,d2)       (d3,d3)
- ----------------- t0 ---------- t1 --------- t2 --------- t3 --------
+cmd issue ------>(a0,d0)      (a1,d1)      (a2,d2)       (d3,d3)_
+ ----------------- t0 ---------- t1 --------- t2 --------- t3 --------_
                      <- 0.1 sec ->
-cmd apply ------------------> (a0,d0)      (a1,d1)       (a2,d2)
+cmd apply ------------------> (a0,d0)      (a1,d1)       (a2,d2)_
 
-resultant of cmd ------------------------->(a0,d0)      (a1,d1)
+resultant of cmd ------------------------->(a0,d0)      (a1,d1)_
 
 a -> acceleration
 d -> steering angle
